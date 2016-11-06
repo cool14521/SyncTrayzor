@@ -35,9 +35,9 @@ namespace SyncTrayzor.Pages.ConflictResolution
         public bool HasFinishedLoadingAndNoConflictsFound => !this.IsSyncthingStopped && !this.IsLoading && this.Conflicts.Count == 0;
         public bool IsSyncthingStopped { get; private set; }
 
-        public bool DeleteToRecycleBin { get; set; }
+        public SingleConflictResolutionView ResolutionViewModel { get; private set; }
 
-        public ConflictViewModel SelectedConflict { get; set; }
+        public bool DeleteToRecycleBin { get; set; }
 
         public ConflictResolutionViewModel(
             ISyncthingManager syncthingManager,
@@ -67,8 +67,8 @@ namespace SyncTrayzor.Pages.ConflictResolution
                     this.NotifyOfPropertyChange(nameof(this.IsLoadingAndNoConflictsFound));
                     this.NotifyOfPropertyChange(nameof(this.HasFinishedLoadingAndNoConflictsFound));
 
-                    if (this.SelectedConflict == null && this.Conflicts.Count > 0)
-                        this.SelectedConflict = this.Conflicts[0];
+                    if (!this.Conflicts.Any(x => x.IsSelected) && this.Conflicts.Count > 0)
+                        this.Conflicts[0].IsSelected = true;
                 }
             };
         }
@@ -140,6 +140,11 @@ namespace SyncTrayzor.Pages.ConflictResolution
             this.loadingCts.Cancel();
         }
 
+        public void SelectionChanged()
+        {
+
+        }
+
         public void ListViewDoubleClick(object sender, RoutedEventArgs e)
         {
             // Check that we were called on a row, not on a header
@@ -147,49 +152,7 @@ namespace SyncTrayzor.Pages.ConflictResolution
                 this.ShowFileInFolder();
         }
 
-        public void ShowFileInFolder()
-        {
-            this.processStartProvider.ShowInExplorer(this.SelectedConflict.FilePath);
-        }
-
-        public void ChooseOriginal(ConflictViewModel conflict)
-        {
-            if (!this.ResolveConflict(this.SelectedConflict.ConflictSet, conflict.ConflictSet.File.FilePath))
-                return;
-
-            // The conflict will no longer exist, so remove it
-            this.Conflicts.Remove(conflict);
-        }
-
-        public void ChooseConflictFile(ConflictOptionViewModel conflictOption)
-        {
-            if (!this.ResolveConflict(this.SelectedConflict.ConflictSet, conflictOption.ConflictOption.FilePath))
-                return;
-
-            // The conflict will no longer exist, so remove it
-            var correspondingVm = this.Conflicts.First(x => x.ConflictOptions.Contains(conflictOption));
-            this.Conflicts.Remove(correspondingVm);
-        }
-
-        private bool ResolveConflict(ConflictSet conflictSet, string filePath)
-        {
-            // This can happen e.g. if the file chosen no longer exists
-            try
-            {
-                this.conflictFileManager.ResolveConflict(conflictSet, filePath, this.DeleteToRecycleBin);
-                return true;
-            }
-            catch (IOException e)
-            {
-                this.windowManager.ShowMessageBox(
-                    Localizer.F(Resources.ConflictResolutionView_Dialog_Failed_Message, e.Message),
-                    Resources.ConflictResolutionView_Dialog_Failed_Title,
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Error
-                );
-                return false;
-            }
-        }
+        
 
         public void Close()
         {
